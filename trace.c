@@ -18,9 +18,10 @@ int parsePacket(pcap_t *pcapSaveFile) {
 	//loop through until we don't have anymore saved packets
 	while (pcap_next_ex(pcapSaveFile, &header, &pkt_data) != -2) {
 		packetsRead++;
-		fprintf(stderr, "Packets Read: %d\n", packetsRead); 
+		fprintf(stdout, "Packet number: %d  ", packetsRead); 
+		fprintf(stdout, "Packet Len: %d\n\n", header->len);
 		//pass to ethernetHeader who will pass on the rest of the work
-		eNetHeaderRet = parseEthernetHeader(pcapSaveFile);
+		eNetHeaderRet = parseEthernetHeader(pkt_data);
 		fprintf(stderr, "Ethernet Header Return Value: %d\n", eNetHeaderRet);
 	}
 	
