@@ -6,11 +6,25 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <pcap.h>
-#include "ethernetHeader.h"
+#include "physicalLayer.h"
 
 /* design will be peel off a layer an pass to lower level of packet */
-void parsePacket(pcap_t *pcapInfo) {
-	//pass to ethernetHeader who will pass on the rest of the work
+int parsePacket(pcap_t *pcapSaveFile) {
+	int eNetHeaderRet = 0;
+	struct pcap_pkthdr *header;
+	const u_char *pkt_data;
+	int packetsRead = 0;
+	
+	//loop through until we don't have anymore saved packets
+	while (pcap_next_ex(pcapSaveFile, &header, &pkt_data) != -2) {
+		packetsRead++;
+		fprintf(stderr, "Packets Read: %d\n", packetsRead); 
+		//pass to ethernetHeader who will pass on the rest of the work
+		eNetHeaderRet = parseEthernetHeader(pcapSaveFile);
+		fprintf(stderr, "Ethernet Header Return Value: %d\n", eNetHeaderRet);
+	}
+	
+	return eNetHeaderRet;
 }
 
 /* will return null if pcap_open_offlien is null */
@@ -37,6 +51,6 @@ int main(int argc, char **args) {
 	}
 
 	//parse pcap file
-	parsePacket(pcapInfo);
-	return 0;
+	int parseRet = parsePacket(pcapInfo);
+	return parseRet;
 }
