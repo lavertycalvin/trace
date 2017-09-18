@@ -1,13 +1,6 @@
 #include "physicalLayer.h"
+#include "linkLayer.h"
 
-void strMAC(uint8_t *macAddr){
-	int i = 0;
-	for (i = 0; i < 5; i++){
-		printf("%x:", macAddr[i]);
-	}
-	printf("%x\n", macAddr[i]);
-
-}
 
 void ethType(uint16_t type){
 	char *etherType = NULL;
@@ -25,19 +18,30 @@ void ethType(uint16_t type){
 }
 
 int parseEthernetHeader(const u_char *pkt_data){
+	int subStructureReturn = 0;
 	struct enet_header *ethHeader = (struct enet_header *)pkt_data;
 	printEthernetHeader(ethHeader);
 	//now pass on to correct sub-structure	
-	return 0;
+	if(ethHeader->type == ARP){
+		subStructureReturn = parseARPHeader(&pkt_data[sizeof(uint8_t) * 14]);
+	}
+	else if(ethHeader->type == IPV4){
+		subStructureReturn = parseIPHeader(&pkt_data[sizeof(uint8_t) * 14]);
+	}
+	else {
+		fprintf(stderr, "Unable to parse substructure of Ethernet Header... Returning 1\n");
+		subStructureReturn = 1;
+	}
+	return subStructureReturn;
 }
 
 void printEthernetHeader(struct enet_header *ethHeader){
 	printf("\tEthernet Header\n");
 	printf("\t\tDest MAC: "); 
 	strMAC(ethHeader->dest);
-	printf("\t\tSource MAC: "); 
+	printf("\n\t\tSource MAC: "); 
 	strMAC(ethHeader->source);
-	printf("\t\tType: "); 
+	printf("\n\t\tType: "); 
 	ethType(ethHeader->type);
 }
 

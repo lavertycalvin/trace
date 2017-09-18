@@ -23,7 +23,6 @@ struct enet_header {
 }__attribute__((packed));
 
 
-void strMAC(uint8_t *macAddr);
 void ethType(uint16_t type);
 int parseEthernetHeader(const u_char *pkt_data);
 void printEthernetHeader(struct enet_header *ethHeader);
