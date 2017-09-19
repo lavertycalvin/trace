@@ -29,7 +29,7 @@ trace-$(EXEC_SUFFIX): trace.c
 	$(CC) $(CFLAGS) $(OSINC) $(OSLIB) $(OSDEF) -o $@ trace.c checksum.c smartalloc.c physicalLayer.c linkLayer.c transportLayer.c -lpcap
 
 handin: README
-	handin bellardo 464_p1 README smartalloc.c smartalloc.h checksum.c checksum.h trace.c Makefile
+	handin bellardo 464_p1 README smartalloc.c smartalloc.h checksum.c checksum.h trace.c physicalLayer.c physicalLayer.h linkLayer.c linkLayer.h transportLayer.c transportLayer.h Makefile
 
 clean:
 	-rm -rf trace-* trace-*.dSYM
