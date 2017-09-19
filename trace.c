@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <pcap.h>
 #include "physicalLayer.h"
+#include "smartalloc.h"
 
 /* design will be peel off a layer an pass to lower level of packet */
 int parsePacket(pcap_t *pcapSaveFile) {
