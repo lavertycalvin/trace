@@ -1,26 +1,29 @@
 #include "linkLayer.h"
+#include "transportLayer.h"
 #include "checksum.h"
 
-void strIP(uint8_t *ipAddr){
-	int i = 0;
-	for (i = 0; i < 3; i++){
-		printf("%d.", ipAddr[i]);
-	}
-	printf("%d", ipAddr[i]);
-}
-
-void strMAC(uint8_t *macAddr){
-	int i = 0;
-	for (i = 0; i < 5; i++){
-		printf("%x:", macAddr[i]);
-	}
-	printf("%x", macAddr[i]);
-}
 
 int parseIPHeader(const u_char *pkt_data){
+	int ip_ret = 0;
 	struct ip_header *ip = (struct ip_header *)pkt_data;	
+	unsigned short ihl = (ip->ip_version & 0xf) * sizeof(uint32_t); //take off the upper bits
 	printIPHeader(ip);
-	return 0;
+	//decide on substructure to pass to
+	if(ip->ip_protocol == ICMP){
+		ip_ret = parseICMPHeader(&pkt_data[ihl]); 	
+	}
+	else if(ip->ip_protocol == UDP){
+		ip_ret = parseUDPHeader(&pkt_data[ihl]);
+	}
+	else if(ip->ip_protocol == TCP){
+		ip_ret = parseTCPHeader(&pkt_data[ihl]);
+	}
+	else{
+		//unknown....
+		fprintf(stderr, "Unknown sub-IP Protocol. Returning 1\n");
+		ip_ret = 1;
+	}
+	return ip_ret;
 }
 
 int parseARPHeader(const u_char *pkt_data){
@@ -30,10 +33,10 @@ int parseARPHeader(const u_char *pkt_data){
 }
 
 void strOpcode(uint16_t opcode){
-	if(opcode == ARP_REQUEST){
+	if(ntohs(opcode) == ARP_REQUEST){
 		fprintf(stdout, "Request");
 	}
-	else if(opcode == ARP_REPLY){
+	else if(ntohs(opcode) == ARP_REPLY){
 		fprintf(stdout, "Reply");
 	}
 	else{
@@ -64,19 +67,18 @@ void strIPProtocol(uint8_t ip_protocol){
 	}
 	fprintf(stdout, "%s", print_protocol);
 }
-void strChecksum(struct ip_header *ip){
+void strIPChecksum(struct ip_header *ip){
 	unsigned short cksum_ret = 0;
 	unsigned short ihl = (ip->ip_version & 0xf) * sizeof(uint32_t); //take off the upper bits
- 	unsigned short packet_checksum = ip->ip_header_checksum;
+ 	unsigned short packet_checksum = ntohs(ip->ip_header_checksum);
 	ip->ip_header_checksum = 0; //set to 0 for check
-	fprintf(stderr, "Internet Header Length: %d\n", ihl);
-	fprintf(stderr, "IP Stuct checksum: %d\n", packet_checksum); 
-	fprintf(stderr, "Check to make sure that checksum is set to 0: %d\n", ip->ip_header_checksum);	
-	if((cksum_ret = in_cksum((short unsigned int *)&ip->ip_version, ihl)) != 0){
-		fprintf(stdout, "Incorrect (0x%x)", cksum_ret);
+	cksum_ret = ntohs(in_cksum((short unsigned int *)&ip->ip_version, ihl));
+
+	if(cksum_ret != packet_checksum){
+		fprintf(stdout, "Incorrect (0x%x)", packet_checksum);
 	}
 	else{
-		fprintf(stdout, "Correct");
+		fprintf(stdout, "Correct (0x%x)", packet_checksum);
 	}
 	
 }
@@ -90,11 +92,12 @@ void printIPHeader(struct ip_header *ip){
 	fprintf(stdout, "\n\t\tProtocol: ");
 	strIPProtocol(ip->ip_protocol);
 	fprintf(stdout, "\n\t\tChecksum: ");
-	strChecksum(ip);
+	strIPChecksum(ip);
 	fprintf(stdout, "\n\t\tSender IP: ");
 	strIP(ip->ip_source_addr);
 	fprintf(stdout, "\n\t\tDest IP: ");
 	strIP(ip->ip_dest_addr);
+
 }
 
 void printARPHeader(struct arp_header *arp){
@@ -109,6 +112,5 @@ void printARPHeader(struct arp_header *arp){
 	strMAC(arp->target_mac);
 	fprintf(stdout, "\n\t\tTarget IP: ");
 	strIP(arp->target_ip);
-	fprintf(stdout, "\n");
 }
 

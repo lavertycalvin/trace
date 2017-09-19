@@ -11,8 +11,8 @@
 #include <pcap.h>
 #include <stdint.h>
 
-#define ARP  0x0608 //little endian?
-#define IPV4 0x0008 //little endian?
+#define ARP  0x0806 
+#define IPV4 0x0800
 
 
 /*14 bytes consumed by the ethernet header*/

@@ -23,6 +23,7 @@ int parsePacket(pcap_t *pcapSaveFile) {
 		//pass to ethernetHeader who will pass on the rest of the work
 		eNetHeaderRet = parseEthernetHeader(pkt_data);
 		//fprintf(stderr, "Ethernet Header Return Value: %d\n", eNetHeaderRet);
+		fprintf(stdout, "\n"); //formatting
 	}
 	
 	return eNetHeaderRet;

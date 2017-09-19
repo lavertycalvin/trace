@@ -1,13 +1,14 @@
 #include "physicalLayer.h"
 #include "linkLayer.h"
-
+#include "transportLayer.h"
+#include <arpa/inet.h>
 
 void ethType(uint16_t type){
 	char *etherType = NULL;
-	if(type == ARP){
+	if(ntohs(type) == ARP){
 		etherType = "ARP";
 	}
-	else if(type == IPV4){
+	else if(ntohs(type) == IPV4){
 		etherType = "IP"; 
 	}
 	else {
@@ -22,10 +23,10 @@ int parseEthernetHeader(const u_char *pkt_data){
 	struct enet_header *ethHeader = (struct enet_header *)pkt_data;
 	printEthernetHeader(ethHeader);
 	//now pass on to correct sub-structure	
-	if(ethHeader->type == ARP){
+	if(ntohs(ethHeader->type) == ARP){
 		subStructureReturn = parseARPHeader(&pkt_data[sizeof(uint8_t) * 14]);
 	}
-	else if(ethHeader->type == IPV4){
+	else if(ntohs(ethHeader->type) == IPV4){
 		subStructureReturn = parseIPHeader(&pkt_data[sizeof(uint8_t) * 14]);
 	}
 	else {
