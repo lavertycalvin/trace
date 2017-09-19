@@ -2,7 +2,6 @@
 #include "transportLayer.h"
 #include "checksum.h"
 
-
 int parseIPHeader(const u_char *pkt_data){
 	int ip_ret = 0;
 	struct ip_header *ip = (struct ip_header *)pkt_data;	
@@ -20,8 +19,8 @@ int parseIPHeader(const u_char *pkt_data){
 	}
 	else{
 		//unknown....
-		fprintf(stderr, "Unknown sub-IP Protocol. Returning 1\n");
-		ip_ret = 1;
+		fprintf(stderr, "Unknown sub-IP Protocol. Returning 0 still\n");
+		ip_ret = 0;
 	}
 	return ip_ret;
 }

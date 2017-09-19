@@ -46,6 +46,16 @@ struct tcp_header{
 	uint16_t tcp_urgent_pointer;
 }__attribute__((packed));
 
+struct tcp_psuedo_header{
+	uint32_t ip_source_addr;
+	uint32_t ip_dest_addr;
+	uint8_t  reserved;
+	uint8_t  protocol;
+	uint16_t tcp_seg_len;
+	struct tcp_header *header; 	//also need to tcp data to follow!
+}__attribute__((packed));
+
+
 struct udp_header{
 	uint16_t udp_source_port;
 	uint16_t udp_dest_port;

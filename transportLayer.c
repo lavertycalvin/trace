@@ -1,6 +1,6 @@
 #include "transportLayer.h"
 #include "checksum.h"
-
+#include "smartalloc.h"
 
 
 void strIP(in_addr_t ipAddr){
@@ -12,8 +12,6 @@ void strMAC(uint8_t *macAddr){
 	const struct ether_addr *address = (struct ether_addr *)macAddr;
 	fprintf(stdout, "%s", ether_ntoa(address));
 }
-
-
 
 void strICMPRequest(uint8_t type){
 	char *str_type = NULL;
@@ -103,15 +101,27 @@ void strWinSize(uint16_t window_size){
 void strTCPChecksum(struct tcp_header *tcp){
 	unsigned short cksum_ret = 0;
  	unsigned short tcp_checksum = ntohs(tcp->tcp_checksum);
+	
+	/* construct our psuedo header */
+	struct tcp_psuedo_header *psuedo_header = malloc(sizeof(struct tcp_psuedo_header));
+       	psuedo_header->ip_source_addr = 0;
+	psuedo_header->ip_dest_addr = 0;
+	psuedo_header->reserved = 0; //8 bits of 0s
+	psuedo_header->protocol = 0;
+	psuedo_header->tcp_seg_len = 0;
+	psuedo_header->header = tcp;	
+	//let's do some fancy math to get our psuedo header
+	
+	
 	tcp->tcp_checksum = 0; //set to 0 for check
 	//cksum_ret = ntohs(in_cksum((short unsigned int *)---------, ----));
-
 	if(cksum_ret != tcp_checksum){
 		fprintf(stdout, "Incorrect (0x%x)", tcp_checksum);
 	}
 	else{
 		fprintf(stdout, "Correct (0x%x)", tcp_checksum);
 	}
+	free(psuedo_header);
 }
 /*end str functions for TCP Header */
 
