@@ -166,7 +166,8 @@ void printICMPHeader(struct icmp_header *icmp){
 	strICMPRequest(icmp->icmp_type);
 }
 
-int parseTCPHeader(const u_char *pkt_data){
+int parseTCPHeader(const u_char *pkt_data, struct tcp_psuedo_header psuedo){
+   //also pass the psuedo-header to calc checksum
 	struct tcp_header *tcp = (struct tcp_header *)pkt_data;
 	printTCPHeader(tcp);
 	return 0;
@@ -200,7 +201,12 @@ int parseIPHeader(const u_char *pkt_data){
 		ip_ret = parseUDPHeader(&pkt_data[ihl]);
 	}
 	else if(ip->ip_protocol == TCP){
-		ip_ret = parseTCPHeader(&pkt_data[ihl]);
+      //create tcp_psuedo header to pass info
+      struct tcp_psuedo_header *psuedo_header = malloc(sizeof(struct tcp_psuedo_header));
+		//now initialize with ip info
+      psuedo_header->tcp;
+      psuedo_header;
+      ip_ret = parseTCPHeader(&pkt_data[ihl], psuedo_header);
 	}
 	else{
 		//unknown....
