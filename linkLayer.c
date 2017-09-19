@@ -48,7 +48,7 @@ void strTTL(uint8_t ip_ttl){
 	fprintf(stdout, "%d", ip_ttl);
 }
 void strIPProtocol(uint8_t ip_protocol){
- // TCP/UDP/ICMP/Unknown
+ 	// TCP/UDP/ICMP/Unknown
 	char *print_protocol = NULL;
 	if(ip_protocol == ICMP){
 		print_protocol = "ICMP";
@@ -66,7 +66,13 @@ void strIPProtocol(uint8_t ip_protocol){
 }
 void strChecksum(struct ip_header *ip){
 	unsigned short cksum_ret = 0;
-	if((cksum_ret = in_cksum((short unsigned int *)&ip->ip_header_checksum, ip->ip_len)) != 0){
+	unsigned short ihl = (ip->ip_version & 0xf) * sizeof(uint32_t); //take off the upper bits
+ 	unsigned short packet_checksum = ip->ip_header_checksum;
+	ip->ip_header_checksum = 0; //set to 0 for check
+	fprintf(stderr, "Internet Header Length: %d\n", ihl);
+	fprintf(stderr, "IP Stuct checksum: %d\n", packet_checksum); 
+	fprintf(stderr, "Check to make sure that checksum is set to 0: %d\n", ip->ip_header_checksum);	
+	if((cksum_ret = in_cksum((short unsigned int *)&ip->ip_version, ihl)) != 0){
 		fprintf(stdout, "Incorrect (0x%x)", cksum_ret);
 	}
 	else{
