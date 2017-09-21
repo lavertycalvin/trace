@@ -88,6 +88,7 @@ void printARPHeader(struct arp_header *arp);
 #define HTTP		80
 #define POP3		110
 
+
 struct tcp_header{
 	uint16_t tcp_source_port;
 	uint16_t tcp_dest_port;
@@ -98,15 +99,20 @@ struct tcp_header{
 	uint16_t tcp_window_size;
 	uint16_t tcp_checksum;
 	uint16_t tcp_urgent_pointer;
+	u_char data[1];//will be able to copy past the end of this array
 }__attribute__((packed));
 
 struct tcp_psuedo_header{
-	uint32_t ip_source_addr;
-	uint32_t ip_dest_addr;
+	in_addr_t ip_source_addr;
+	in_addr_t ip_dest_addr;
 	uint8_t  reserved;
 	uint8_t  protocol;
 	uint16_t tcp_seg_len;
-	struct tcp_header *header; 	//also need to tcp data to follow!
+}__attribute__((packed));
+
+struct tcp_combo{
+	struct tcp_psuedo_header psuedo_header;
+	struct tcp_header header;
 }__attribute__((packed));
 
 struct udp_header{
@@ -126,10 +132,10 @@ struct icmp_header{
 
 void strMAC(uint8_t *macAddr);
 void strIP(in_addr_t ipAddr);
-int parseTCPHeader(const u_char *pkt_data);
+int parseTCPHeader(struct tcp_combo *combo);
 int parseUDPHeader(const u_char *pkt_data);
 int parseICMPHeader(const u_char *pkt_data);
-void printTCPHeader(struct tcp_header *tcp);
+void printTCPHeader(struct tcp_combo *tcp);
 void printUDPHeader(struct udp_header *udp);
 void printICMPHeader(struct icmp_header *icmp);
 /* end transport layer */
