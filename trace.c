@@ -120,7 +120,6 @@ void strTCPChecksum(struct tcp_header *tcp){
 	
 	
 	tcp->tcp_checksum = 0; //set to 0 for check
-	//cksum_ret = ntohs(in_cksum((short unsigned int *)---------, ----));
 	if(cksum_ret != tcp_checksum){
 		fprintf(stdout, "Incorrect (0x%x)", tcp_checksum);
 	}
