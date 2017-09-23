@@ -106,24 +106,26 @@ void strWinSize(uint16_t window_size){
 }
 void strTCPChecksum(struct tcp_combo *tcp){
 	unsigned short cksum_ret = 0;
- 	unsigned short tcp_checksum = ntohs(tcp->header.tcp_checksum);
+ 	unsigned short cksum_header = ntohs(tcp->header.tcp_checksum);
 	fprintf(stderr, "\nPSUEDO HEADER CONTENTS:\n");
-	fprintf(stderr, "\tTCP LEN\t\t: %u\n", tcp->psuedo_header.tcp_seg_len);	
-	int tcp_offset = (ntohs(tcp->header.tcp_data_offset) & 0x7) * sizeof(uint32_t); //mask off other bits
-      	fprintf(stderr, "\tDATA OFFSET\t: 0x%x\n", tcp_offset);
 
-	//fprintf(stderr, "Checking next item: %d\n", ntohs((uint16_t)(&tcp->psuedo_header.tcp_seg_len)[sizeof(uint16_t)])); -- checks to make sure packing is working correctly
-	
+	int tcp_offset = ((tcp->header.tcp_data_offset) >> 4) * sizeof(uint32_t); //mask off other bits
+      	fprintf(stderr, "\tTCP HEADER LEN\t: %u\n", tcp_offset);
+	//subtract tcp_offset from TCP_seg_len
+	tcp->psuedo_header.tcp_seg_len = htons(ntohs(tcp->psuedo_header.tcp_seg_len) - tcp_offset);
+      	fprintf(stderr, "\tTCP SEG LEN\t: %u\n", ntohs(tcp->psuedo_header.tcp_seg_len));
+
+	fprintf(stderr, "\tCHECKSUM COMP LEN: %lu\n", ntohs(tcp->psuedo_header.tcp_seg_len) + sizeof(tcp->psuedo_header) + tcp_offset);	
 	tcp->header.tcp_checksum = 0; //set to 0 for check
-	cksum_ret = ntohs(in_cksum((short unsigned int *)&tcp->psuedo_header, tcp->psuedo_header.tcp_seg_len + 24));
+	cksum_ret = ntohs(in_cksum((short unsigned int *)&tcp->psuedo_header, ntohs(tcp->psuedo_header.tcp_seg_len) + sizeof(tcp->psuedo_header) + tcp_offset));
 	
-	if(cksum_ret != tcp_checksum){
-		fprintf(stdout, "Incorrect (0x%x)", tcp_checksum);
+	if(cksum_ret != cksum_header){
+		fprintf(stdout, "Incorrect (0x%x)", cksum_header);
 		fprintf(stderr, "COMPUTED  : 0x%x\n", cksum_ret);
-		fprintf(stderr, "IN HEADER : 0x%x\n", tcp_checksum);
+		fprintf(stderr, "IN HEADER : 0x%x\n", cksum_header);
 	}
 	else{
-		fprintf(stdout, "Correct (0x%x)", tcp_checksum);
+		fprintf(stdout, "Correct (0x%x)", cksum_header);
 	}
 }
 /*end str functions for TCP Header */
@@ -196,17 +198,18 @@ int parseIPHeader(const u_char *pkt_data){
 	}
 	else if(ip->ip_protocol == TCP){
       		//create tcp_psuedo header to pass info
-      		struct tcp_combo *combo = malloc(sizeof(struct tcp_combo) + ip->ip_len - ihl);
+      		struct tcp_combo *combo = malloc(sizeof(struct tcp_combo) + ntohs(ip->ip_len) - ihl);
 		
 		//set up vars for psuedo header
 		combo->psuedo_header.ip_source_addr = ip->ip_source_addr;
       		combo->psuedo_header.ip_dest_addr = ip->ip_dest_addr;
       		combo->psuedo_header.reserved = 0;
       		combo->psuedo_header.protocol = ip->ip_protocol;
-      		combo->psuedo_header.tcp_seg_len = ntohs(ip->ip_len) - ihl - 20; //20 is the length of the TCP Header
+      		combo->psuedo_header.tcp_seg_len = htons(ntohs(ip->ip_len) - ihl); //still need to delete length of TCP Header after setup
 		
 		//set up header
-		memcpy(&combo->header, &pkt_data[ihl], sizeof(struct tcp_header) + ntohs(ip->ip_len) - ihl); 
+		memcpy(&combo->header, &pkt_data[ihl], sizeof(combo->header) + ntohs(ip->ip_len) - ihl); 
+		
 		ip_ret = parseTCPHeader(combo);
 		free(combo);
 	}
