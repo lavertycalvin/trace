@@ -7,8 +7,7 @@
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 
-/* physical layer defs */
-
+/* Ethernet Header defs */
 #define ARP  0x0806 
 #define IPV4 0x0800
 
@@ -24,7 +23,7 @@ void ethType(uint16_t type);
 int parseEthernetHeader(const u_char *pkt_data);
 void printEthernetHeader(struct enet_header *ethHeader);
 
-/* end physical layer defs */
+/* end Ethernet Header defs */
 
 /* link layer defs */
 #define ARP_REQUEST 	1
@@ -69,15 +68,16 @@ void printARPHeader(struct arp_header *arp);
 
 /* transport layer defs */
 
-/*tcp defines */
+/*tcp flag defines */
 #define FIN_MASK	0x1
 #define SYN_MASK 	0x2
 #define RST_MASK	0x4
 
-/*icmp defines */
+/*icmp type defines */
 #define ICMP_REQUEST 	0x8 		//stored in type field
 #define ICMP_REPLY	0x0 		//stored in type field
 
+/* transport layer protocol defs */
 #define TCP_PROTO 	0x0
 #define UDP_PROTO	0x1
 
@@ -99,10 +99,10 @@ struct tcp_header{
 	uint16_t tcp_window_size;
 	uint16_t tcp_checksum;
 	uint16_t tcp_urgent_pointer;
-	u_char data[1];//will be able to copy past the end of this array
+	u_char data[1];			//copy past the end of this array when malloced correct length
 }__attribute__((packed));
 
-struct tcp_psuedo_header{
+struct tcp_pseudo_header{
 	in_addr_t ip_source_addr;
 	in_addr_t ip_dest_addr;
 	uint8_t  reserved;
@@ -110,8 +110,9 @@ struct tcp_psuedo_header{
 	uint16_t tcp_seg_len;
 }__attribute__((packed));
 
+/* hold tcp pseudo header and header consecutively for checksum */
 struct tcp_combo{
-	struct tcp_psuedo_header psuedo_header;
+	struct tcp_pseudo_header pseudo_header;
 	struct tcp_header header;
 }__attribute__((packed));
 
@@ -132,9 +133,11 @@ struct icmp_header{
 
 void strMAC(uint8_t *macAddr);
 void strIP(in_addr_t ipAddr);
+
 int parseTCPHeader(struct tcp_combo *combo);
 int parseUDPHeader(const u_char *pkt_data);
 int parseICMPHeader(const u_char *pkt_data);
+
 void printTCPHeader(struct tcp_combo *tcp);
 void printUDPHeader(struct udp_header *udp);
 void printICMPHeader(struct icmp_header *icmp);
