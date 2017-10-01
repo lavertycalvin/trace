@@ -1,4 +1,7 @@
-/* Header file for CPE 464 Trace Program */
+/* Header file for trace.c */
+#ifndef TRACE_H
+#define TRACE_H
+
 
 #include <pcap.h>
 #include <stdint.h>
@@ -7,14 +10,14 @@
 #include <arpa/inet.h>
 #include <netinet/ether.h>
 
-/* Ethernet Header defs */
+/* ================ Ethernet Header defs ================ */
 #define ARP  0x0806 
 #define IPV4 0x0800
 
 /*14 bytes consumed by the ethernet header*/
 struct enet_header {
-	uint8_t dest[6];
-	uint8_t source[6];
+	struct ether_addr dest;
+	struct ether_addr source;
 	uint16_t type; /*ARP, IP, Unknown*/
 }__attribute__((packed));
 
@@ -23,9 +26,9 @@ void ethType(uint16_t type);
 int parseEthernetHeader(const u_char *pkt_data);
 void printEthernetHeader(struct enet_header *ethHeader);
 
-/* end Ethernet Header defs */
+/*  ================= end Ethernet Header defs ============  */
 
-/* link layer defs */
+/*  =================== link layer defs ===================  */
 #define ARP_REQUEST 	1
 #define ARP_REPLY 	2 
 
@@ -38,35 +41,35 @@ struct arp_header{
 	uint16_t protocol_type;
 	uint8_t  hardware_addr_len;
 	uint8_t  protocol_addr_len;
-	uint16_t opcode; 		//print
-	uint8_t  sender_mac[6]; 	//print
-	in_addr_t sender_ip;     	//print
-	uint8_t  target_mac[6]; 	//print
-	in_addr_t target_ip;		//print
+	uint16_t opcode; 		
+	struct ether_addr  sender_mac; 	
+	struct in_addr sender_ip;     	
+	struct ether_addr  target_mac; 	
+	struct in_addr target_ip;		
 }__attribute__((packed));
 
 struct ip_header{
-	uint8_t  ip_version; 		//4 bits are version, next 4 are ihl
+	uint8_t  ip_version; 		//0-3 bits are version, 4-7 are ihl
 	uint8_t tos; 			//type of service or DSCP
 	uint16_t ip_len; 		//entire packet length including header and data
-	uint16_t ip_id; 		//???
-	uint16_t ip_flags_and_offset; 	//first 3 bits are flags, last are fragment offset
+	uint16_t ip_id; 		//
+	uint16_t ip_flags_and_offset; 	//0-2 bits are flags, last are fragment offset
 	uint8_t  ip_ttl; 		//time to live
-	uint8_t  ip_protocol; 		// TCP/UDP/ICMP/Unknown
+	uint8_t  ip_protocol; 		//TCP/UDP/ICMP/Unknown
 	uint16_t ip_header_checksum; 	//error checking
-	in_addr_t ip_source_addr; 	//
-	in_addr_t ip_dest_addr;   	//
-	uint64_t ip_options_1;	 	//OPTIONS
-	uint64_t ip_options_2;   	//MORE OPTIONS
+	struct in_addr ip_source_addr; 	//
+	struct in_addr ip_dest_addr;   	//
+	uint64_t ip_options_1;	 	//
+	uint64_t ip_options_2;   	//
 }__attribute__((packed));
 
 int parseIPHeader(const u_char *pkt_data);
 int parseARPHeader(const u_char *pkt_data);
 void printIPHeader(struct ip_header *ip);
 void printARPHeader(struct arp_header *arp);
-/* end link layer */
+/*  ===================  end link layer =======================*/
 
-/* transport layer defs */
+/*  ================= transport layer defs ====================*/
 
 /*tcp flag defines */
 #define FIN_MASK	0x1
@@ -88,7 +91,6 @@ void printARPHeader(struct arp_header *arp);
 #define HTTP		80
 #define POP3		110
 
-
 struct tcp_header{
 	uint16_t tcp_source_port;
 	uint16_t tcp_dest_port;
@@ -99,18 +101,18 @@ struct tcp_header{
 	uint16_t tcp_window_size;
 	uint16_t tcp_checksum;
 	uint16_t tcp_urgent_pointer;
-	u_char data[1];			//copy past the end of this array when malloced correct length
+	u_char data[];			//flexible array member: data past the tcp header
 }__attribute__((packed));
 
 struct tcp_pseudo_header{
-	in_addr_t ip_source_addr;
-	in_addr_t ip_dest_addr;
+	struct in_addr ip_source_addr;
+	struct in_addr ip_dest_addr;
 	uint8_t  reserved;
 	uint8_t  protocol;
 	uint16_t tcp_seg_len;
 }__attribute__((packed));
 
-/* hold tcp pseudo header and header consecutively for checksum */
+/* hold tcp pseudo header and header consecutively for checksum computation*/
 struct tcp_combo{
 	struct tcp_pseudo_header pseudo_header;
 	struct tcp_header header;
@@ -131,8 +133,8 @@ struct icmp_header{
 }__attribute__((packed));
 
 
-void strMAC(uint8_t *macAddr);
-void strIP(in_addr_t ipAddr);
+void strMAC(struct ether_addr macAddr);
+void strIP(struct in_addr ipAddr);
 
 int parseTCPHeader(struct tcp_combo *combo);
 int parseUDPHeader(const u_char *pkt_data);
@@ -141,4 +143,5 @@ int parseICMPHeader(const u_char *pkt_data);
 void printTCPHeader(struct tcp_combo *tcp);
 void printUDPHeader(struct udp_header *udp);
 void printICMPHeader(struct icmp_header *icmp);
-/* end transport layer */
+/* ===================== end transport layer =======================*/
+#endif

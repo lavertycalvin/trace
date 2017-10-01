@@ -34,13 +34,6 @@
  * SUCH DAMAGE.
  */
 
-/*
-
-   See textbook - for more details on the Internet checksum.
-
-   Hugh Smith
-   John Bellardo
-*/
 
 
 #include <stdlib.h>

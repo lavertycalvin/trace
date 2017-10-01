@@ -1,24 +1,32 @@
-/* Program 1     : Packet Parsing
- * Author        : Calvin Laverty
- * Last Modified : 9/29/17
+/* Author        : Calvin Laverty
+ * Last Modified : 9/30/17
+ * Overview: Pass in a single pcap file for header parsing.
+ * 	Header Support:
+ * 		Ethernet II
+ * 		ARP, ICMP
+ * 		TCP, UDP
+ *
+ * NOTE: checksum.h and checksum.c are NOT my personal property. 
+ * I had no contribution to these files
  */
 
+#include <stdlib.h>
+#include <string.h>
+
 #include "trace.h"
-#include "smartalloc.h"
 #include "checksum.h"
 
+/* multi-layer functions */
+void strIP(struct in_addr ipAddr){
+	fprintf(stdout, "%s", inet_ntoa(ipAddr));
+}
+
+void strMAC(struct ether_addr macAddr){
+	fprintf(stdout, "%s", ether_ntoa(&macAddr));
+}
+/* end multi-layer functions */
+
 /* transport layer */
-
-void strIP(in_addr_t ipAddr){
-	struct in_addr *address = (struct in_addr *)&ipAddr;
-	fprintf(stdout, "%s", inet_ntoa(*address));
-}
-
-void strMAC(uint8_t *macAddr){
-	const struct ether_addr *address = (struct ether_addr *)macAddr;
-	fprintf(stdout, "%s", ether_ntoa(address));
-}
-
 void strICMPType(uint8_t type){
 	char *str_type = NULL;
 	if(type == ICMP_REQUEST){
@@ -52,9 +60,7 @@ void strPort(uint16_t port_num, int protocol){
 	else if(host_order_port == SMTP){
 		str_port = "SMTP";	
 	}
-	else{
-		fprintf(stderr, "No Designated port, printing out port number!\n");	
-	}
+	else{} //leave as null for check
 
 	//check to see if port was recognized
 	if(str_port != NULL){
@@ -73,38 +79,17 @@ void strAckNum(uint32_t num){
 	fprintf(stdout, "%u", ntohl(num));
 }
 
-void strSYNFlag(uint8_t flags){
-	char *str_syn = NULL;
-	if(flags & SYN_MASK){
-		str_syn = "Yes";
+void strTCPFlag(uint8_t flags, uint8_t mask){
+	char *str_flag = NULL;
+	if(flags & mask){
+		str_flag = "Yes";
 	}
 	else{
-		str_syn = "No";
+		str_flag = "No";
 	}
-	fprintf(stdout, "%s", str_syn); 
+	fprintf(stdout, "%s", str_flag); 
 }
 
-void strRSTFlag(uint8_t flags){
-	char *str_rst = NULL;
-	if(flags & RST_MASK){
-		str_rst = "Yes";
-	}
-	else{
-		str_rst = "No";
-	}
-	fprintf(stdout, "%s", str_rst); 
-}
-
-void strFINFlag(uint8_t flags){
-	char *str_fin = NULL;
-	if(flags & FIN_MASK){
-		str_fin = "Yes";
-	}
-	else{
-		str_fin = "No";
-	}
-	fprintf(stdout, "%s", str_fin); 
-}
 
 void strWinSize(uint16_t window_size){
 	fprintf(stdout, "%u", ntohs(window_size));
@@ -113,20 +98,11 @@ void strWinSize(uint16_t window_size){
 void strTCPChecksum(struct tcp_combo *tcp){
 	unsigned short cksum_ret = 0;
  	unsigned short cksum_header = ntohs(tcp->header.tcp_checksum);
-	fprintf(stderr, "\nPSUEDO HEADER CONTENTS:\n");
+	int buf_size = 	ntohs(tcp->pseudo_header.tcp_seg_len) + sizeof(tcp->pseudo_header);
 
-	int tcp_offset = ((tcp->header.tcp_data_offset) >> 4) * sizeof(uint32_t); //mask off other bits
-      	fprintf(stderr, "\tTCP HEADER LEN\t: %u\n", tcp_offset);
+	cksum_ret = in_cksum((short unsigned int *)&tcp->pseudo_header, buf_size);
 	
-	//subtract tcp_offset from TCP_seg_len
-	tcp->pseudo_header.tcp_seg_len = htons(ntohs(tcp->pseudo_header.tcp_seg_len) - tcp_offset);
-      	fprintf(stderr, "\tTCP SEG LEN\t: %u\n", ntohs(tcp->pseudo_header.tcp_seg_len));
-
-	fprintf(stderr, "\tCHECKSUM COMP LEN: %lu\n", ntohs(tcp->pseudo_header.tcp_seg_len) + sizeof(tcp->pseudo_header) + tcp_offset);	
-	tcp->header.tcp_checksum = 0; //set to 0 for check
-	cksum_ret = ntohs(in_cksum((short unsigned int *)&tcp->pseudo_header, ntohs(tcp->pseudo_header.tcp_seg_len) + sizeof(tcp->pseudo_header) + tcp_offset));
-	
-	if(cksum_ret != cksum_header){
+	if(cksum_ret != 0){
 		fprintf(stdout, "Incorrect (0x%x)", cksum_header);
 	}
 	else{
@@ -137,34 +113,48 @@ void strTCPChecksum(struct tcp_combo *tcp){
 
 void printTCPHeader(struct tcp_combo *tcp){
 	fprintf(stdout, "\n\n\tTCP Header");
+	
 	fprintf(stdout, "\n\t\tSource Port:  ");
 	strPort(tcp->header.tcp_source_port, TCP_PROTO);
+	
 	fprintf(stdout, "\n\t\tDest Port:  ");
 	strPort(tcp->header.tcp_dest_port, TCP_PROTO);	
+	
 	fprintf(stdout, "\n\t\tSequence Number: ");
 	strSeqNum(tcp->header.tcp_seq_num);
+	
 	fprintf(stdout, "\n\t\tACK Number: ");
 	strAckNum(tcp->header.tcp_ack_num);
+	
 	fprintf(stdout, "\n\t\tSYN Flag: ");
-	strSYNFlag(tcp->header.tcp_flags);
+	strTCPFlag(tcp->header.tcp_flags, SYN_MASK);
+	
 	fprintf(stdout, "\n\t\tRST Flag: ");
-	strRSTFlag(tcp->header.tcp_flags);
+	strTCPFlag(tcp->header.tcp_flags, RST_MASK);
+	
 	fprintf(stdout, "\n\t\tFIN Flag: ");
-	strFINFlag(tcp->header.tcp_flags);
+	strTCPFlag(tcp->header.tcp_flags, FIN_MASK);
+	
 	fprintf(stdout, "\n\t\tWindow Size: ");
 	strWinSize(tcp->header.tcp_window_size);
+	
 	fprintf(stdout, "\n\t\tChecksum: ");
 	strTCPChecksum(tcp);
 }
+
 void printUDPHeader(struct udp_header *udp){
 	fprintf(stdout, "\n\n\tUDP Header");
-	fprintf(stdout, "\n\t\tSource Port:  ");
+	
+	fprintf(stdout, "\n\t\tSource Port: ");
 	strPort(udp->udp_source_port, UDP_PROTO);
-	fprintf(stdout, "\n\t\tDest Port:  ");
+	
+	fprintf(stdout, "\n\t\tDest Port: ");
 	strPort(udp->udp_dest_port, UDP_PROTO);
 }
+
 void printICMPHeader(struct icmp_header *icmp){
 	fprintf(stdout, "\n\n\tICMP Header");
+	
 	fprintf(stdout, "\n\t\tType: ");
 	strICMPType(icmp->icmp_type);
 }
@@ -205,12 +195,17 @@ int parseIPHeader(const u_char *pkt_data){
       		//create tcp_pseudo header to pass info
       		struct tcp_combo *combo = malloc(sizeof(struct tcp_combo) + ntohs(ip->ip_len) - ihl);
 		
+		if(combo == NULL){
+			fprintf(stderr, "Unable to malloc for TCP header\n");
+			return 2; //indicate failure for different reason	
+		}
+		
 		//set up pseudo tcp header
 		combo->pseudo_header.ip_source_addr = ip->ip_source_addr;
       		combo->pseudo_header.ip_dest_addr = ip->ip_dest_addr;
       		combo->pseudo_header.reserved = 0;
       		combo->pseudo_header.protocol = ip->ip_protocol;
-      		combo->pseudo_header.tcp_seg_len = htons(ntohs(ip->ip_len) - ihl); //still need to delete length of TCP Header after setup
+      		combo->pseudo_header.tcp_seg_len = htons(ntohs(ip->ip_len) - ihl);
 		
 		//set up tcp header
 		memcpy(&combo->header, &pkt_data[ihl], sizeof(combo->header) + ntohs(ip->ip_len) - ihl); 
@@ -220,8 +215,8 @@ int parseIPHeader(const u_char *pkt_data){
 	}
 	else{
 		//unknown type
-		fprintf(stderr, "Unknown sub-IP Protocol. Returning 0 still\n");
-		ip_ret = 0;
+		fprintf(stderr, "Unknown sub-IP Protocol.\n");
+		ip_ret = 1;
 	}
 	return ip_ret;
 }
@@ -247,9 +242,11 @@ void strOpcode(uint16_t opcode){
 void strTOS(uint16_t tos){
 	fprintf(stdout, "0x%x", tos);
 }
+
 void strTTL(uint8_t ip_ttl){
 	fprintf(stdout, "%d", ip_ttl);
 }
+
 void strIPProtocol(uint8_t ip_protocol){
  	// Types accepted: TCP/UDP/ICMP/Unknown
 	char *print_protocol = NULL;
@@ -267,15 +264,15 @@ void strIPProtocol(uint8_t ip_protocol){
 	}
 	fprintf(stdout, "%s", print_protocol);
 }
+
 void strIPChecksum(struct ip_header *ip){
 	unsigned short cksum_ret = 0;
 	unsigned short ihl = (ip->ip_version & 0xf) * sizeof(uint32_t); //take off the upper bits
 	unsigned short packet_checksum = ntohs(ip->ip_header_checksum);
 
-	ip->ip_header_checksum = 0; //set to 0 for check
-	cksum_ret = ntohs(in_cksum((short unsigned int *)&ip->ip_version, ihl));
+	cksum_ret = in_cksum((short unsigned int *)&ip->ip_version, ihl);
 
-	if(cksum_ret != packet_checksum){
+	if(cksum_ret != 0){
 		fprintf(stdout, "Incorrect (0x%x)", packet_checksum);
 	}
 	else{
@@ -286,37 +283,46 @@ void strIPChecksum(struct ip_header *ip){
 
 void printIPHeader(struct ip_header *ip){
 	fprintf(stdout, "\n\tIP Header");
+	
 	fprintf(stdout, "\n\t\tTOS: ");
 	strTOS(ip->tos);
+	
 	fprintf(stdout, "\n\t\tTTL: ");
 	strTTL(ip->ip_ttl);
+	
 	fprintf(stdout, "\n\t\tProtocol: ");
 	strIPProtocol(ip->ip_protocol);
+	
 	fprintf(stdout, "\n\t\tChecksum: ");
 	strIPChecksum(ip);
+	
 	fprintf(stdout, "\n\t\tSender IP: ");
 	strIP(ip->ip_source_addr);
+	
 	fprintf(stdout, "\n\t\tDest IP: ");
 	strIP(ip->ip_dest_addr);
-
 }
 
 void printARPHeader(struct arp_header *arp){
 	fprintf(stdout, "\n\tARP Header");
+	
 	fprintf(stdout, "\n\t\tOpcode: ");
 	strOpcode(arp->opcode);
+	
 	fprintf(stdout, "\n\t\tSender MAC: ");
 	strMAC(arp->sender_mac);
+	
 	fprintf(stdout, "\n\t\tSender IP: ");
 	strIP(arp->sender_ip);
+	
 	fprintf(stdout, "\n\t\tTarget MAC: ");
 	strMAC(arp->target_mac);
+	
 	fprintf(stdout, "\n\t\tTarget IP: ");
 	strIP(arp->target_ip);
 }
-
-
 /* end link layer */
+
 /* physical layer */
 void ethType(uint16_t type){
 	char *etherType = NULL;
@@ -336,7 +342,9 @@ void ethType(uint16_t type){
 int parseEthernetHeader(const u_char *pkt_data){
 	int subHeaderReturn = 0;
 	struct enet_header *ethHeader = (struct enet_header *)pkt_data;
+	
 	printEthernetHeader(ethHeader);
+	
 	//now pass on to correct sub-structure	
 	if(ntohs(ethHeader->type) == ARP){
 		subHeaderReturn = parseARPHeader(&pkt_data[sizeof(struct enet_header)]);
@@ -353,16 +361,19 @@ int parseEthernetHeader(const u_char *pkt_data){
 
 void printEthernetHeader(struct enet_header *ethHeader){
 	printf("\tEthernet Header\n");
+	
 	printf("\t\tDest MAC: "); 
 	strMAC(ethHeader->dest);
+	
 	printf("\n\t\tSource MAC: "); 
 	strMAC(ethHeader->source);
+	
 	printf("\n\t\tType: "); 
 	ethType(ethHeader->type);
 }
 /* end physical layer */
 
-/* design: peel off a layer an pass to next level of packet */
+/* design: peel off a layer an pass to next layer */
 int parsePacket(pcap_t *pcapSaveFile) {
 	int eNetHeaderRet = 0;
 	struct pcap_pkthdr *header = NULL;
@@ -372,12 +383,12 @@ int parsePacket(pcap_t *pcapSaveFile) {
 	//loop through until we don't have anymore saved packets
 	while (pcap_next_ex(pcapSaveFile, &header, &pkt_data) != -2) {
 		packetsRead++;
+		
 		fprintf(stdout, "\nPacket number: %d  ", packetsRead); 
 		fprintf(stdout, "Packet Len: %d\n\n", header->len);
-		//pass to ethernetHeader
+		
 		eNetHeaderRet = parseEthernetHeader(pkt_data);
-		fprintf(stderr, "Ethernet Header Return Value: %d\n", eNetHeaderRet);
-		fprintf(stdout, "\n"); //formatting
+		fprintf(stdout, "\n"); //formatting for multiple packets
 	}	
 	return eNetHeaderRet;
 }
@@ -385,7 +396,7 @@ int parsePacket(pcap_t *pcapSaveFile) {
 /* will return null if pcap_open_offline is null */
 pcap_t *openPcapFile(char *fileName) {
 	char errbuf[PCAP_ERRBUF_SIZE];
-	pcap_t *pcapInfo;
+	pcap_t *pcapInfo = NULL;
 	if ((pcapInfo = pcap_open_offline(fileName, errbuf)) == NULL) {
 		fprintf(stderr, "Unable to open pcap file! Error: %s\n", errbuf);
 	}
@@ -395,18 +406,15 @@ pcap_t *openPcapFile(char *fileName) {
 int main(int argc, char **args) {
 	//only take one pcap file as an input
 	int parseRet = 0;
-	pcap_t *pcapInfo;
+	pcap_t *pcapInfo = NULL;
 	if (argc != 2) {
 		fprintf(stderr, "Illegal Use: Please provide a single pcap file\n");
 		parseRet = 1;
-	}
-		
-	//open pcap file
+	}	
 	else if ((pcapInfo = openPcapFile(args[1])) == NULL) {
 		parseRet = 1;
 	}
 	else{
-		//parse pcap file if open is successful
 		parseRet = parsePacket(pcapInfo);
 	}
 	exit(parseRet);
